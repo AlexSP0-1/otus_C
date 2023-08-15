@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(otus_C LANGUAGES C)
+project(otus_c LANGUAGES C)
 
-add_subdirectory(hw_03)
+add_subdirectory(hw_01)
 
