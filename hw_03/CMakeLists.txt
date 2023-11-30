@@ -1,8 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(hw_03 LANGUAGES C)
+project("hw_03"
+    VERSION 0.0.1
+    DESCRIPTION "homework for out c developer course"
+    LANGUAGES C)
 
-add_executable(hw_03 main.c)
+add_subdirectory(maplib)
+add_subdirectory(wordcount)
 
-install(TARGETS hw_03
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+set(CPACK_PROJECT_NAME ${PROJECT_NAME})
+set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
+include(CPack)
