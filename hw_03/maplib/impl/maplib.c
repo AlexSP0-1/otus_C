@@ -92,7 +92,7 @@ static inline size_t map_index(uint32_t hashcode, size_t probe, size_t modul)
 {
     size_t h1 = hashcode % modul;
     size_t h2 = hashcode % (modul - 1) + 1;
-    return (h1 + probe * h2) & modul;
+    return (h1 + probe * h2) % modul;
 }
 
 static MapEntry ** map_find_entry(Map *map, MapKey key)
