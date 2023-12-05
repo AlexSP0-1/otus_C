@@ -1,12 +1,12 @@
-#! /usr/bin/env sh
+#! /bin/sh
 ## DO NOT EDIT - This file generated from ./build-aux/ltmain.in
 ##               by inline-source v2019-02-19.15
 
-# libtool (GNU libtool) 2.4.7
+# libtool (GNU libtool) 2.4.6
 # Provide generalized library-building support services.
 # Written by Gordon Matzigkeit <gord@gnu.ai.mit.edu>, 1996
 
-# Copyright (C) 1996-2019, 2021-2022 Free Software Foundation, Inc.
+# Copyright (C) 1996-2019 Free Software Foundation, Inc.
 # This is free software; see the source for copying conditions.  There is NO
 # warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
@@ -31,8 +31,8 @@
 
 PROGRAM=libtool
 PACKAGE=libtool
-VERSION="2.4.7 Debian-2.4.7-7"
-package_revision=2.4.7
+VERSION=2.4.6
+package_revision=2.4.6
 
 
 ## ------ ##
@@ -72,7 +72,7 @@ scriptversion=2019-02-19.15; # UTC
 # This is free software.  There is NO warranty; not even for
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
-# Copyright (C) 2004-2019, 2021 Bootstrap Authors
+# Copyright (C) 2004-2019 Bootstrap Authors
 #
 # This file is dual licensed under the terms of the MIT license
 # <https://opensource.org/license/MIT>, and GPL version 2 or later
@@ -130,12 +130,6 @@ do
 	  _G_safe_locale=\"$_G_var=C; \$_G_safe_locale\"
 	fi"
 done
-# These NLS vars are set unconditionally (bootstrap issue #24).  Unset those
-# in case the environment reset is needed later and the $save_* variant is not
-# defined (see the code above).
-LC_ALL=C
-LANGUAGE=C
-export LANGUAGE LC_ALL
 
 # Make sure IFS has a sensible default
 sp=' '
@@ -374,35 +368,6 @@ sed_double_backslash="\
   s/\\([^$_G_bs]\\)$_G_bs2$_G_dollar/\\1$_G_bs2$_G_bs$_G_dollar/g
   s/\n//g"
 
-# require_check_ifs_backslash
-# ---------------------------
-# Check if we can use backslash as IFS='\' separator, and set
-# $check_ifs_backshlash_broken to ':' or 'false'.
-require_check_ifs_backslash=func_require_check_ifs_backslash
-func_require_check_ifs_backslash ()
-{
-  _G_save_IFS=$IFS
-  IFS='\'
-  _G_check_ifs_backshlash='a\\b'
-  for _G_i in $_G_check_ifs_backshlash
-  do
-  case $_G_i in
-  a)
-    check_ifs_backshlash_broken=false
-    ;;
-  '')
-    break
-    ;;
-  *)
-    check_ifs_backshlash_broken=:
-    break
-    ;;
-  esac
-  done
-  IFS=$_G_save_IFS
-  require_check_ifs_backslash=:
-}
-
 
 ## ----------------- ##
 ## Global variables. ##
@@ -430,7 +395,7 @@ EXIT_SKIP=77	  # $? = 77 is used to indicate a skipped test to automake.
 # putting '$debug_cmd' at the start of all your functions, you can get
 # bash to show function call trace with:
 #
-#    debug_cmd='echo "${FUNCNAME[0]} $*" >&2' bash your-script-name
+#    debug_cmd='eval echo "${FUNCNAME[0]} $*" >&2' bash your-script-name
 debug_cmd=${debug_cmd-":"}
 exit_cmd=:
 
@@ -572,15 +537,27 @@ func_require_term_colors ()
 # ---------------------
 # Append VALUE onto the existing contents of VAR.
 
+  # We should try to minimise forks, especially on Windows where they are
+  # unreasonably slow, so skip the feature probes when bash or zsh are
+  # being used:
+  if test set = "${BASH_VERSION+set}${ZSH_VERSION+set}"; then
+    : ${_G_HAVE_ARITH_OP="yes"}
+    : ${_G_HAVE_XSI_OPS="yes"}
+    # The += operator was introduced in bash 3.1
+    case $BASH_VERSION in
+      [12].* | 3.0 | 3.0*) ;;
+      *)
+        : ${_G_HAVE_PLUSEQ_OP="yes"}
+        ;;
+    esac
+  fi
+
   # _G_HAVE_PLUSEQ_OP
   # Can be empty, in which case the shell is probed, "yes" if += is
   # useable or anything else if it does not work.
-  if test -z "$_G_HAVE_PLUSEQ_OP" &&  \
-      __PLUSEQ_TEST="a" &&  \
-      __PLUSEQ_TEST+=" b" 2>/dev/null &&  \
-      test "a b" = "$__PLUSEQ_TEST"; then
-    _G_HAVE_PLUSEQ_OP=yes
-  fi
+  test -z "$_G_HAVE_PLUSEQ_OP" \
+    && (eval 'x=a; x+=" b"; test "a b" = "$x"') 2>/dev/null \
+    && _G_HAVE_PLUSEQ_OP=yes
 
 if test yes = "$_G_HAVE_PLUSEQ_OP"
 then
@@ -922,30 +899,15 @@ func_mktempdir ()
 {
     $debug_cmd
 
-    _G_template=${TMPDIR-/tmp}/${1-$progname}
-
     if test : = "$opt_dry_run"; then
       # Return a directory name, but don't create it in dry-run mode
-      _G_tmpdir=$_G_template-$$
+      _G_mktemp='mktemp -dtu'
     else
-
-      # If mktemp works, use that first and foremost
-      _G_tmpdir=`mktemp -d "$_G_template-XXXXXXXX" 2>/dev/null`
-
-      if test ! -d "$_G_tmpdir"; then
-        # Failing that, at least try and use $RANDOM to avoid a race
-        _G_tmpdir=$_G_template-${RANDOM-0}$$
-
-        func_mktempdir_umask=`umask`
-        umask 0077
-        $MKDIR "$_G_tmpdir"
-        umask $func_mktempdir_umask
-      fi
-
-      # If we're not in dry-run mode, bomb out on failure
-      test -d "$_G_tmpdir" || \
-        func_fatal_error "cannot create temporary directory '$_G_tmpdir'"
+      _G_mktemp='mktemp -dt'
     fi
+
+    _G_tmpdir=`$_G_mktemp "${1-$progname}-XXXXXXXX"` || \
+      func_fatal_error "cannot create temporary directory"
 
     $ECHO "$_G_tmpdir"
 }
@@ -1131,8 +1093,6 @@ func_quote_portable ()
 {
     $debug_cmd
 
-    $require_check_ifs_backslash
-
     func_quote_portable_result=$2
 
     # one-time-loop (easy break)
@@ -1147,10 +1107,8 @@ func_quote_portable ()
       # Quote for eval.
       case $func_quote_portable_result in
         *[\\\`\"\$]*)
-          # Fallback to sed for $func_check_bs_ifs_broken=:, or when the string
-          # contains the shell wildcard characters.
-          case $check_ifs_backshlash_broken$func_quote_portable_result in
-            :*|*[\[\*\?]*)
+          case $func_quote_portable_result in
+            *[\[\*\?]*)
               func_quote_portable_result=`$ECHO "$func_quote_portable_result" \
                   | $SED "$sed_quote_subst"`
               break
@@ -1524,7 +1482,7 @@ func_lt_ver ()
 # This is free software.  There is NO warranty; not even for
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
-# Copyright (C) 2010-2019, 2021 Bootstrap Authors
+# Copyright (C) 2010-2019 Bootstrap Authors
 #
 # This file is dual licensed under the terms of the MIT license
 # <https://opensource.org/license/MIT>, and GPL version 2 or later
@@ -1693,8 +1651,6 @@ func_propagate_result ()
 func_run_hooks ()
 {
     $debug_cmd
-
-    _G_rc_run_hooks=false
 
     case " $hookable_fns " in
       *" $1 "*) ;;
@@ -2085,7 +2041,7 @@ else
 
       func_split_equals_lhs=`expr "x$1" : 'x\([^=]*\)'`
       func_split_equals_rhs=
-      test "x$func_split_equals_lhs=" = "x$1" \
+      test "x$func_split_equals_lhs" = "x$1" \
         || func_split_equals_rhs=`expr "x$1" : 'x[^=]*=\(.*\)$'`
   }
 fi #func_split_equals
@@ -2111,7 +2067,7 @@ else
   {
       $debug_cmd
 
-      func_split_short_opt_name=`expr "x$1" : 'x\(-.\)'`
+      func_split_short_opt_name=`expr "x$1" : 'x-\(.\)'`
       func_split_short_opt_arg=`expr "x$1" : 'x-.\(.*\)$'`
   }
 fi #func_split_short_opt
@@ -2205,7 +2161,7 @@ func_version ()
 # End:
 
 # Set a version string.
-scriptversion='(GNU libtool) 2.4.7'
+scriptversion='(GNU libtool) 2.4.6'
 
 
 # func_echo ARG...
@@ -2296,7 +2252,7 @@ include the following information:
        compiler:       $LTCC
        compiler flags: $LTCFLAGS
        linker:         $LD (gnu? $with_gnu_ld)
-       version:        $progname $scriptversion Debian-2.4.7-7
+       version:        $progname (GNU libtool) 2.4.6
        automake:       `($AUTOMAKE --version) 2>/dev/null |$SED 1q`
        autoconf:       `($AUTOCONF --version) 2>/dev/null |$SED 1q`
 
@@ -2497,8 +2453,6 @@ libtool_options_prep ()
 
     nonopt=
     preserve_args=
-
-    _G_rc_lt_options_prep=:
 
     _G_rc_lt_options_prep=:
 
@@ -3893,8 +3847,7 @@ This mode accepts the following additional options:
   -prefer-non-pic   try to build non-PIC objects only
   -shared           do not build a '.o' file suitable for static linking
   -static           only build a '.o' file suitable for static linking
-  -Wc,FLAG
-  -Xcompiler FLAG   pass FLAG directly to the compiler
+  -Wc,FLAG          pass FLAG directly to the compiler
 
 COMPILE-COMMAND is a command to be used in creating a 'standard' object file
 from the given SOURCEFILE.
@@ -4000,8 +3953,6 @@ The following components of LINK-COMMAND are treated specially:
   -weak LIBNAME     declare that the target provides the LIBNAME interface
   -Wc,FLAG
   -Xcompiler FLAG   pass linker-specific FLAG directly to the compiler
-  -Wa,FLAG
-  -Xassembler FLAG  pass linker-specific FLAG directly to the assembler
   -Wl,FLAG
   -Xlinker FLAG     pass linker-specific FLAG directly to the linker
   -XCClinker FLAG   pass link-specific FLAG to the compiler driver (CC)
@@ -4455,6 +4406,8 @@ func_mode_install ()
       func_dirname_and_basename "$dest" "" "."
       destdir=$func_dirname_result
       destname=$func_basename_result
+      func_stripname '' '/' "$destdir"
+      destdir=$func_stripname_result
 
       # Not a directory, so check to see that there is only one file specified.
       set dummy $files; shift
@@ -4462,7 +4415,10 @@ func_mode_install ()
 	func_fatal_help "'$dest' is not a directory"
     fi
     case $destdir in
-    [\\/]* | [A-Za-z]:[\\/]*) ;;
+    [\\/]* | [A-Za-z]:[\\/]*)
+      func_normal_abspath "$destdir"
+      destdir="$func_normal_abspath_result"
+      ;;
     *)
       for file in $files; do
 	case $file in
@@ -6755,6 +6711,11 @@ func_mode_link ()
       # that all symbols are satisfied, otherwise we get a static library.
       allow_undefined=yes
       ;;
+    *-*-linux*)
+      if test "$link_all_deplibs" = unknown; then
+	link_all_deplibs=no
+      fi
+      ;;
     *)
       allow_undefined=yes
       ;;
@@ -7074,6 +7035,8 @@ func_mode_link ()
 	    func_fatal_error "only absolute run-paths are allowed"
 	    ;;
 	  esac
+	  func_normal_abspath "$arg"
+	  arg="$func_normal_abspath_result"
 	  if test rpath = "$prev"; then
 	    case "$rpath " in
 	    *" $arg "*) ;;
@@ -7096,13 +7059,6 @@ func_mode_link ()
 	weak)
 	  func_append weak_libs " $arg"
 	  prev=
-	  continue
-	  ;;
-	xassembler)
-	  func_append compiler_flags " -Xassembler $qarg"
-	  prev=
-	  func_append compile_command " -Xassembler $qarg"
-	  func_append finalize_command " -Xassembler $qarg"
 	  continue
 	  ;;
 	xcclinker)
@@ -7275,7 +7231,7 @@ func_mode_link ()
 	    # These systems don't actually have a C library (as such)
 	    test X-lc = "X$arg" && continue
 	    ;;
-	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig* | *-*-midnightbsd*)
+	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig*)
 	    # Do not include libc due to us having libc/libc_r.
 	    test X-lc = "X$arg" && continue
 	    ;;
@@ -7295,7 +7251,7 @@ func_mode_link ()
 	  esac
 	elif test X-lc_r = "X$arg"; then
 	 case $host in
-	 *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig* | *-*-midnightbsd*)
+	 *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-bitrig*)
 	   # Do not include libc_r directly, use -pthread flag.
 	   continue
 	   ;;
@@ -7325,20 +7281,8 @@ func_mode_link ()
 	prev=xcompiler
 	continue
 	;;
-     # Solaris ld rejects as of 11.4. Refer to Oracle bug 22985199.
-     -pthread)
-	case $host in
-	  *solaris2*) ;;
-	  *)
-	    case "$new_inherited_linker_flags " in
-	        *" $arg "*) ;;
-	        * ) func_append new_inherited_linker_flags " $arg" ;;
-	    esac
-	  ;;
-	esac
-	continue
-	;;
-      -mt|-mthreads|-kthread|-Kthread|-pthreads|--thread-safe \
+
+      -mt|-mthreads|-kthread|-Kthread|-pthread|-pthreads|--thread-safe \
       |-threads|-fopenmp|-openmp|-mp|-xopenmp|-omp|-qsmp=*)
 	func_append compiler_flags " $arg"
 	func_append compile_command " $arg"
@@ -7505,11 +7449,6 @@ func_mode_link ()
 	arg=$func_stripname_result
 	;;
 
-      -Xassembler)
-        prev=xassembler
-        continue
-        ;;
-
       -Xcompiler)
 	prev=xcompiler
 	continue
@@ -7549,13 +7488,10 @@ func_mode_link ()
       # -stdlib=*            select c++ std lib with clang
       # -fsanitize=*         Clang/GCC memory and address sanitizer
       # -fuse-ld=*           Linker select flags for GCC
-      # -static-*            direct GCC to link specific libraries statically
-      # -fcilkplus           Cilk Plus language extension features for C/C++
-      # -Wa,*                Pass flags directly to the assembler
       -64|-mips[0-9]|-r[0-9][0-9]*|-xarch=*|-xtarget=*|+DA*|+DD*|-q*|-m*| \
       -t[45]*|-txscale*|-p|-pg|--coverage|-fprofile-*|-F*|@*|-tp=*|--sysroot=*| \
       -O*|-g*|-flto*|-fwhopr*|-fuse-linker-plugin|-fstack-protector*|-stdlib=*| \
-      -specs=*|-fsanitize=*|-fuse-ld=*|-static-*|-fcilkplus|-Wa,*)
+      -specs=*|-fsanitize=*|-fuse-ld=*)
         func_quote_arg pretty "$arg"
 	arg=$func_quote_arg_result
         func_append compile_command " $arg"
@@ -7850,7 +7786,8 @@ func_mode_link ()
 	dlpreopen) libs=$dlprefiles ;;
 	link)
 	  libs="$deplibs %DEPLIBS%"
-	  test "X$link_all_deplibs" != Xno && libs="$libs $dependency_libs"
+	  test "X$link_all_deplibs" = Xno ||
+	    func_append libs " $dependency_libs"
 	  ;;
 	esac
       fi
@@ -8173,7 +8110,7 @@ func_mode_link ()
 	    tmp_libs=
 	    for deplib in $dependency_libs; do
 	      deplibs="$deplib $deplibs"
-	      if $opt_preserve_dup_deps; then
+	      if $opt_duplicate_deps; then
 		case "$tmp_libs " in
 		*" $deplib "*) func_append specialdeplibs " $deplib" ;;
 		esac
@@ -8915,7 +8852,7 @@ func_mode_link ()
       test CXX = "$tagname" && {
         case $host_os in
         linux*)
-          case `$CC -V 2>&1 | $SED 5q` in
+          case `$CC -V 2>&1 | sed 5q` in
           *Sun\ C*) # Sun C++ 5.9
             func_suncc_cstd_abi
 
@@ -9088,7 +9025,7 @@ func_mode_link ()
 	  #
 	  case $version_type in
 	  # correct linux to gnu/linux during the next big refactor
-	  darwin|freebsd-elf|linux|midnightbsd-elf|osf|windows|none)
+	  darwin|freebsd-elf|linux|osf|windows|none)
 	    func_arith $number_major + $number_minor
 	    current=$func_arith_result
 	    age=$number_minor
@@ -9107,7 +9044,7 @@ func_mode_link ()
 	    lt_irix_increment=no
 	    ;;
 	  *)
-	    func_fatal_configuration "$modename: unknown library version type '$version_type'"
+	    func_fatal_configuration "$modename: unknown library version type \`$version_type'"
 	    ;;
 	  esac
 	  ;;
@@ -9182,7 +9119,7 @@ func_mode_link ()
 	  versuffix=.$current.$revision
 	  ;;
 
-	freebsd-elf | midnightbsd-elf)
+	freebsd-elf)
 	  func_arith $current - $age
 	  major=.$func_arith_result
 	  versuffix=$major.$age.$revision
@@ -9363,6 +9300,10 @@ func_mode_link ()
 	# If the user specified any rpath flags, then add them.
 	temp_xrpath=
 	for libdir in $xrpath; do
+	  # Skip directories that are in the system default run-time search path.
+	  case " $sys_lib_dlsearch_path " in
+	  *" $libdir "*) continue ;;
+	  esac
 	  func_replace_sysroot "$libdir"
 	  func_append temp_xrpath " -R$func_replace_sysroot_result"
 	  case "$finalize_rpath " in
@@ -9408,7 +9349,7 @@ func_mode_link ()
 	  *-*-netbsd*)
 	    # Don't link with libc until the a.out ld.so is fixed.
 	    ;;
-	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly* | *-*-midnightbsd*)
+	  *-*-openbsd* | *-*-freebsd* | *-*-dragonfly*)
 	    # Do not include libc due to us having libc/libc_r.
 	    ;;
 	  *-*-sco3.2v5* | *-*-sco5v6*)
@@ -10545,6 +10486,10 @@ EOF
       if test -n "$rpath$xrpath"; then
 	# If the user specified any rpath flags, then add them.
 	for libdir in $rpath $xrpath; do
+	  # Skip directories that are in the system default run-time search path.
+	  case " $sys_lib_dlsearch_path " in
+	  *" $libdir "*) continue ;;
+	  esac
 	  # This is the magic to use -rpath.
 	  case "$finalize_rpath " in
 	  *" $libdir "*) ;;
