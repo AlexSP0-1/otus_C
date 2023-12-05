@@ -1,21 +1,21 @@
     bits 64
-    extern malloc, puts, printf, fflush, abort
+    extern malloc, free, puts, printf, fflush, abort
     global main
 
     section   .data
 empty_str: db 0x0
 int_format: db "%ld ", 0x0
-data: dq 4, 8, 15, 16, 23, 42
-data_length: equ ($-data) / 8
+data: dq 4, 8, 15, 16, 23, 42 ; uint64_t
+data_length: equ ($-data) / 8 ; sizeof(data)
 
     section   .text
 ;;; print_int proc
 print_int:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16
+    ; rdi указатель на int
+    mov r14, rsp ; align stack
+    and rsp, -16 ;
 
-    mov rsi, rdi
+    mov rsi, [rdi] 
     mov rdi, int_format
     xor rax, rax
     call printf
@@ -23,8 +23,15 @@ print_int:
     xor rdi, rdi
     call fflush
 
-    mov rsp, rbp
-    pop rbp
+    mov rsp, r14
+    ret
+
+free_cb:
+   ; rdi указатель на структуру
+    mov r14, rsp ; align stack
+    and rsp, -16 ;
+    call free 
+    mov rsp, r14
     ret
 
 ;;; p proc
@@ -34,81 +41,70 @@ p:
     ret
 
 ;;; add_element proc
-add_element:
-    push rbp
-    push rbx
-    push r14
-    mov rbp, rsp
-    sub rsp, 16
+add_element: ; a_ (prev) , b_(value)
+    push rbp ; save stack
+    push rbx ; save bx, we use it in such_function
 
-    mov r14, rdi
-    mov rbx, rsi
+    mov r14, rsp ; align stack
+    and rsp, -16 ;
 
-    mov rdi, 16
+    mov rbp, rdi  ; rbp = a_
+    mov rbx, rsi ;  rbx = b_ 
+
+    mov rdi, 16 ; выделили 16 байт
     call malloc
     test rax, rax
     jz abort
 
-    mov [rax], r14
-    mov [rax + 8], rbx
+    mov [rax], rbp  ; *ptr[0] = a_
+    mov [rax + 8], rbx ; *ptr[1] = b_ 
 
-    mov rsp, rbp
-    pop r14
+    ; restore stack after align
+    mov rsp, r14
     pop rbx
     pop rbp
     ret
 
-;;; m proc
+;;; m proc  walk over list using recucrsion
 m:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16
-
+    ; rdi - указатель на элемент списка
+    ; rsi - функция
     test rdi, rdi
     jz outm
-
-    push rbp
-    push rbx
-
-    mov rbx, rdi
-    mov rbp, rsi
-
-    mov rdi, [rdi]
+    push rsi
+    mov r13, [rdi + 8] ; указатель на следующий 
     call rsi
-
-    mov rdi, [rbx + 8]
-    mov rsi, rbp
+    pop rsi
+    mov rdi, r13
     call m
-
-    pop rbx
-    pop rbp
-
 outm:
-    mov rsp, rbp
-    pop rbp
     ret
 
 ;;; f proc
 f:
+    ; rdi = указатель на элемент списка
+    ; rsi = изнчаельно 0  (новый список)
+    ; rdx = функция f(rdi) условие добавления в новый список
     mov rax, rsi
 
     test rdi, rdi
-    jz outf
+    jz outf ; выход, если rdi==0
 
-    push rbx
+    push rbx ; store what using
     push r12
     push r13
 
-    mov rbx, rdi
-    mov r12, rsi
-    mov r13, rdx
+    mov rbx, rdi ; указатель списка
+    mov r12, rsi ; значение изначально 0
+    mov r13, rdx ; функция f(rdi)
 
-    mov rdi, [rdi]
-    call rdx
-    test rax, rax
+    mov rdi, [rdi] ; берем значение
+    call rdx ; вызов f для значения
+    test rax, rax ; елси 0, - для p() - если значение нечетное
     jz z
 
-    mov rdi, [rbx]
+    ; добавляетя значение *rbx (= значение элемета списка) в список rsi
+    mov rdi, [rbx] 
     mov rsi, r12
     call add_element
     mov rsi, rax
@@ -117,11 +113,10 @@ f:
 z:
     mov rsi, r12
 
-ff:
+ff: ; реуксисный вызов f() для следующего элемента списка
     mov rdi, [rbx + 8]
     mov rdx, r13
     call f
-
     pop r13
     pop r12
     pop rbx
@@ -131,39 +126,50 @@ outf:
 
 ;;; main proc
 main:
-    push rbx
-
-    xor rax, rax
-    mov rbx, data_length
+    push rbx ; вызов функции
+    xor rax, rax ; a=0
+    mov rbx, data_length ; j=data_length
 adding_loop:
-    mov rdi, [data - 8 + rbx * 8]
-    mov rsi, rax
-    call add_element
-    dec rbx
-    jnz adding_loop
+    mov rdi, [data - 8 + rbx * 8] ; b=data[j-1]
+    mov rsi, rax ; a_=a, b_ = b;  add_elemet(a_,b_);
+    call add_element ; out rax - указатeль на структуру
+    dec rbx ; j-=1
+    jnz adding_loop ; until (j==0)
 
-    mov rbx, rax
+    mov rbx, rax ; заголовок списка
 
-    mov rdi, rax
+    ; вывод первого списка
+    mov rdi, rbx 
     mov rsi, print_int
     call m
-
     mov rdi, empty_str
     call puts
-
+    
+   
     mov rdx, p
-    xor rsi, rsi
-    mov rdi, rbx
+    xor rsi, rsi ;=0
+    mov rdi, rbx ; заголовок входного списка
     call f
-
+    
+    ; вывод второго списка
+    push rax;
     mov rdi, rax
     mov rsi, print_int
     call m
-
     mov rdi, empty_str
     call puts
+    pop rax;
+
+    ;удаление второго списка
+    mov rdi, rax 
+    mov rsi, free_cb
+    call m
+   
+    ;удаление первого списка
+    mov rdi, rbx 
+    mov rsi, free_cb
+    call m
 
     pop rbx
-
     xor rax, rax
     ret
