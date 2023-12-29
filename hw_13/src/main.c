@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Чтение до приглашения
-  {                               
+  {
     uint8_t buf[2] = {'\n', '.'}; // строка приглашение
     const int buf_sz = sizeof(buf) / sizeof(char);
     int i = 0;
@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     }
     if (tryes == 0) {
       fprintf(stderr, "отстутствует приглашение от сервера\n");
-      goto onerror;
+      goto noinvitation;
     }
   }
 
@@ -167,9 +167,10 @@ int main(int argc, char *argv[]) {
   close(sock);
   freeaddrinfo(addr_info);
   return EXIT_SUCCESS;
-
 onerror:
   buffer_free(&answer);
+
+noinvitation:
   shutdown(sock, SHUT_RDWR);
   close(sock);
   freeaddrinfo(addr_info);
