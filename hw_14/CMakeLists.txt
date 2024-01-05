@@ -8,3 +8,4 @@ project("fileserver"
 add_compile_options(-std=gnu17 -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration)
 add_link_options(-rdynamic)
 add_subdirectory(sflog)
+add_subdirectory(fileserver)
