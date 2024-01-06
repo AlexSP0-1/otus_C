@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(cube LANGUAGES C)
+project(getstat LANGUAGES C)
 
 set(This getstat)
 
